@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
 import subprocess
 import re
 import threading
@@ -13,8 +13,8 @@ class NetworkCombinerApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Network Combiner - go-dispatch-proxy GUI")
-        self.root.geometry("940x760")
-        self.root.minsize(860, 680)
+        self.root.geometry("940x680")
+        self.root.minsize(860, 600)
         self.root.resizable(True, True)
         self.root.configure(bg="#0c111b")
 
@@ -75,11 +75,14 @@ class NetworkCombinerApp:
 
         shell = tk.Frame(self.main_frame, bg="#0c111b")
         shell.pack(fill="both", expand=True, padx=20, pady=18)
+        shell.grid_columnconfigure(0, weight=1)
+        shell.grid_rowconfigure(2, weight=3)
+        shell.grid_rowconfigure(4, weight=2)
 
         header = tk.Frame(
             shell, bg="#13243d", highlightbackground="#2f4f74", highlightthickness=1
         )
-        header.pack(fill="x", pady=(0, 14))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
 
         tk.Label(
             header,
@@ -99,7 +102,7 @@ class NetworkCombinerApp:
         controls = tk.Frame(
             shell, bg="#152033", highlightbackground="#2b3d5c", highlightthickness=1
         )
-        controls.pack(fill="x", pady=(0, 10))
+        controls.grid(row=1, column=0, sticky="ew", pady=(0, 10))
 
         tk.Button(
             controls,
@@ -153,16 +156,14 @@ class NetworkCombinerApp:
         )
         self.status_label.pack(side="right", padx=(0, 14), pady=10)
 
-        self.splitter = ttk.Panedwindow(shell, orient="vertical")
-        self.splitter.pack(fill="both", expand=True, pady=(0, 10))
-
         adapter_panel = tk.Frame(
-            self.splitter,
+            shell,
             bg="#0f1828",
             highlightbackground="#2b3d5c",
             highlightthickness=1,
         )
         self.adapter_panel = adapter_panel
+        self.adapter_panel.grid(row=2, column=0, sticky="nsew", pady=(0, 10))
 
         top_row = tk.Frame(adapter_panel, bg="#0f1828")
         top_row.pack(fill="x", padx=14, pady=(12, 8))
@@ -178,11 +179,12 @@ class NetworkCombinerApp:
         self.ip_frame.pack(fill="both", expand=True, padx=14, pady=(0, 14))
 
         control_panel = tk.Frame(
-            self.splitter,
+            shell,
             bg="#0c111b",
             highlightbackground="#2b3d5c",
             highlightthickness=1,
         )
+        control_panel.grid(row=3, column=0, sticky="ew", pady=(0, 10))
 
         action_row = tk.Frame(control_panel, bg="#0c111b")
         action_row.pack(fill="x", padx=14, pady=(12, 8))
@@ -236,12 +238,13 @@ class NetworkCombinerApp:
         self.stop_btn.pack(side="left")
 
         log_panel = tk.Frame(
-            self.splitter,
+            shell,
             bg="#111827",
             highlightbackground="#2b3d5c",
             highlightthickness=1,
         )
         self.log_panel = log_panel
+        self.log_panel.grid(row=4, column=0, sticky="nsew")
 
         tk.Label(
             log_panel,
@@ -264,10 +267,7 @@ class NetworkCombinerApp:
             pady=8,
         )
         self.log_text.pack(fill="both", expand=True, padx=14, pady=(0, 14))
-
-        self.splitter.add(adapter_panel, weight=3)
-        self.splitter.add(control_panel, weight=0)
-        self.splitter.add(log_panel, weight=2)
+        self.log_text.bind("<MouseWheel>", self._on_log_mousewheel, add="+")
 
         self._update_responsive_heights()
 
@@ -294,6 +294,18 @@ class NetworkCombinerApp:
 
         self.main_canvas.yview_scroll(steps, "units")
 
+    def _on_log_mousewheel(self, event):
+        delta = event.delta
+        if delta == 0:
+            return "break"
+
+        steps = int(-1 * (delta / 120))
+        if steps == 0:
+            steps = -1 if delta > 0 else 1
+
+        self.log_text.yview_scroll(steps, "units")
+        return "break"
+
     def _widget_is_descendant(self, widget, ancestor):
         current = widget
         while current is not None:
@@ -316,19 +328,10 @@ class NetworkCombinerApp:
         if window_height <= 1:
             return
 
-        available_height = max(320, window_height - 310)
-        adapter_height = max(220, int(available_height * 0.53))
-        control_height = 92
+        available_height = max(320, window_height - 300)
         log_height_lines = max(8, min(18, int(available_height / 32)))
 
         self.log_text.config(height=log_height_lines)
-
-        if hasattr(self, "splitter"):
-            try:
-                self.splitter.sashpos(0, adapter_height)
-                self.splitter.sashpos(1, adapter_height + control_height)
-            except Exception:
-                pass
 
     def log(self, message):
         self.log_text.config(state="normal")
