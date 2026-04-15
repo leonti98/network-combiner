@@ -1,6 +1,6 @@
 # Network-combiner
 
-Network Combiner is a Windows desktop GUI for `go-dispatch-proxy`. It lets you combine multiple active network adapters behind one local SOCKS5 endpoint, assign traffic weights per adapter, and optionally auto-route compatible system traffic through a PAC file.
+Network Combiner is a Windows desktop GUI for `go-dispatch-proxy`. It lets you combine multiple active network adapters (speeds) behind one local SOCKS5 endpoint, assign traffic weights per adapter, and optionally auto-route compatible system traffic through a PAC file.
 
 ## What this tool does
 - Allows you to combine multiple network speed
