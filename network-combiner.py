@@ -7,6 +7,7 @@ import os
 import ctypes
 import winreg
 import tempfile
+import json
 
 
 class NetworkCombinerApp:
@@ -43,6 +44,7 @@ class NetworkCombinerApp:
         self.selected_vars = {}
         self.ratio_vars = {}
         self.adapter_by_ip = {}
+        self.adapter_description_by_ip = {}
 
         self.refresh_ips()  # initial load
         self._set_proxy_state(False)
@@ -346,10 +348,10 @@ class NetworkCombinerApp:
         self.selected_vars.clear()
         self.ratio_vars.clear()
         self.adapter_by_ip.clear()
+        self.adapter_description_by_ip.clear()
 
         try:
-            output = subprocess.check_output(["ipconfig"], shell=True, text=True)
-            entries = self._extract_adapter_ips(output)
+            entries = self._get_up_adapter_entries()
 
             if not entries:
                 self.adapter_count_var.set("0 adapters detected")
@@ -361,7 +363,15 @@ class NetworkCombinerApp:
             self.log(f"✅ Found {len(entries)} adapter IPs")
             self.adapter_count_var.set(f"{len(entries)} adapters detected")
 
-            for adapter_name, ip in entries:
+            for item in entries:
+                adapter_name = item.get("Name", "Unknown")
+                adapter_desc = item.get("InterfaceDescription", "")
+                ip = item.get("IPAddress", "")
+                link_speed = item.get("LinkSpeed", "")
+
+                if not ip:
+                    continue
+
                 row = tk.Frame(
                     self.ip_frame,
                     bg="#132137",
@@ -374,9 +384,18 @@ class NetworkCombinerApp:
                 sel_var = tk.BooleanVar(value=False)
                 self.selected_vars[ip] = sel_var
                 self.adapter_by_ip[ip] = adapter_name
+                self.adapter_description_by_ip[ip] = adapter_desc
+
+                primary_text = f"{adapter_name} ({ip})"
+                if link_speed:
+                    primary_text = f"{primary_text} [{link_speed}]"
+
+                text_col = tk.Frame(row, bg="#132137")
+                text_col.pack(side="left", fill="x", expand=True, padx=(8, 4), pady=4)
+
                 cb = tk.Checkbutton(
-                    row,
-                    text=f"{adapter_name} ({ip})",
+                    text_col,
+                    text=primary_text,
                     variable=sel_var,
                     bg="#132137",
                     fg="#e1ecfb",
@@ -385,8 +404,21 @@ class NetworkCombinerApp:
                     activeforeground="#e1ecfb",
                     font=("Bahnschrift", 10),
                     anchor="w",
+                    justify="left",
                 )
-                cb.pack(side="left", fill="x", expand=True, padx=(8, 4), pady=6)
+                cb.pack(anchor="w", fill="x")
+
+                if adapter_desc:
+                    desc = tk.Label(
+                        text_col,
+                        text=adapter_desc,
+                        bg="#132137",
+                        fg="#9bb3d1",
+                        font=("Bahnschrift", 8),
+                        anchor="w",
+                        justify="left",
+                    )
+                    desc.pack(anchor="w", fill="x", padx=(24, 0), pady=(0, 2))
 
                 # Ratio slider
                 tk.Label(
@@ -417,46 +449,58 @@ class NetworkCombinerApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to get IPs:\n{str(e)}")
 
-    def _extract_adapter_ips(self, ipconfig_output):
-        entries = []
-        seen_ips = set()
-        current_adapter = "Unknown"
+    def _get_up_adapter_entries(self):
+        command = (
+            'Get-NetAdapter | Where-Object Status -eq "Up" | ForEach-Object { '
+            "  $adapter = $_; "
+            "  Get-NetIPAddress -InterfaceIndex $adapter.IfIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | "
+            "    Where-Object { $_.IPAddress -and $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | "
+            "    ForEach-Object { [PSCustomObject]@{ "
+            "      Name = $adapter.Name; "
+            "      InterfaceDescription = $adapter.InterfaceDescription; "
+            "      Status = $adapter.Status; "
+            "      LinkSpeed = $adapter.LinkSpeed; "
+            "      IPAddress = $_.IPAddress "
+            "    } } "
+            "} | "
+            "ConvertTo-Json -Depth 2"
+        )
+        try:
+            raw = subprocess.check_output(
+                ["powershell", "-NoProfile", "-Command", command],
+                text=True,
+            ).strip()
+            if not raw:
+                return {}
 
-        for raw_line in ipconfig_output.splitlines():
-            line = raw_line.rstrip()
-            stripped = line.strip()
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                parsed = [parsed]
 
-            if not stripped:
-                continue
+            entries = []
+            seen_ips = set()
+            for item in parsed:
+                ip = str(item.get("IPAddress", "")).strip()
+                if not ip or ip in seen_ips:
+                    continue
 
-            # Adapter header lines usually look like: "Ethernet adapter Wi-Fi:"
-            if line == stripped and stripped.endswith(":"):
-                header = stripped[:-1]
-                lower_header = header.lower()
-                marker = " adapter "
-                if marker in lower_header:
-                    idx = lower_header.find(marker)
-                    current_adapter = header[idx + len(marker) :].strip()
-                else:
-                    current_adapter = header
-                continue
+                seen_ips.add(ip)
+                entries.append(
+                    {
+                        "Name": str(item.get("Name", "Unknown")).strip(),
+                        "InterfaceDescription": str(
+                            item.get("InterfaceDescription", "")
+                        ).strip(),
+                        "Status": str(item.get("Status", "")).strip(),
+                        "LinkSpeed": str(item.get("LinkSpeed", "")).strip(),
+                        "IPAddress": ip,
+                    }
+                )
 
-            ip_match = re.search(
-                r"IPv4[^:]*:\s*([\d.]+)", stripped, flags=re.IGNORECASE
-            )
-            if not ip_match:
-                continue
-
-            ip = ip_match.group(1)
-            if ip.startswith(("127.", "0.0.0.0")):
-                continue
-            if ip in seen_ips:
-                continue
-
-            seen_ips.add(ip)
-            entries.append((current_adapter, ip))
-
-        return entries
+            return entries
+        except Exception as exc:
+            self.log(f"⚠️ Could not read adapter metadata from PowerShell: {exc}")
+            return []
 
     def _build_selected_adapter_specs(self):
         specs = {}
