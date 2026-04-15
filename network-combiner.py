@@ -76,7 +76,7 @@ class NetworkCombinerApp:
         self.root.bind("<Configure>", self._on_root_resize)
 
         shell = tk.Frame(self.main_frame, bg="#0c111b")
-        shell.pack(fill="both", expand=True, padx=20, pady=18)
+        shell.pack(fill="both", expand=True, padx=12, pady=10)
         shell.grid_columnconfigure(0, weight=1)
         shell.grid_rowconfigure(2, weight=3)
         shell.grid_rowconfigure(4, weight=2)
@@ -84,59 +84,64 @@ class NetworkCombinerApp:
         header = tk.Frame(
             shell, bg="#13243d", highlightbackground="#2f4f74", highlightthickness=1
         )
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
 
         tk.Label(
             header,
             text="Network Combiner",
             bg="#13243d",
             fg="#e8f2ff",
-            font=("Bahnschrift SemiBold", 22),
-        ).pack(anchor="w", padx=18, pady=(14, 2))
+            font=("Segoe UI", 18),
+        ).pack(anchor="w", padx=12, pady=(10, 0))
         tk.Label(
             header,
             text="Combine multiple adapter IPs into one SOCKS5 endpoint with weighted balancing",
             bg="#13243d",
             fg="#9fb5cf",
-            font=("Cascadia Mono", 10),
-        ).pack(anchor="w", padx=18, pady=(0, 12))
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", padx=12, pady=(2, 8))
 
         controls = tk.Frame(
             shell, bg="#152033", highlightbackground="#2b3d5c", highlightthickness=1
         )
         controls.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        controls.grid_columnconfigure(2, weight=1)
+        controls.grid_columnconfigure(4, weight=1)
 
-        tk.Button(
+        refresh_btn = tk.Button(
             controls,
             text="Refresh Adapters",
             command=self.refresh_ips,
-            width=16,
+            width=14,
             bg="#285f9a",
             fg="#ffffff",
             activebackground="#3676b8",
             activeforeground="#ffffff",
             relief="flat",
-            font=("Bahnschrift SemiBold", 10),
+            font=("Segoe UI", 10),
             cursor="hand2",
-        ).pack(side="left", padx=(14, 12), pady=12)
+        )
+        refresh_btn.grid(row=0, column=0, padx=(8, 6), pady=8, sticky="w")
 
-        tk.Label(
+        count_label = tk.Label(
             controls,
             textvariable=self.adapter_count_var,
             bg="#152033",
             fg="#9fb5cf",
-            font=("Cascadia Mono", 10),
-        ).pack(side="left", pady=12)
+            font=("Consolas", 9),
+        )
+        count_label.grid(row=0, column=1, padx=(0, 12), pady=8, sticky="w")
 
-        tk.Label(
+        port_label = tk.Label(
             controls,
             text="SOCKS5 Port",
             bg="#152033",
             fg="#e2ecf9",
-            font=("Bahnschrift", 10),
-        ).pack(side="left", padx=(26, 8), pady=12)
+            font=("Segoe UI", 10),
+        )
+        port_label.grid(row=0, column=2, padx=(8, 6), pady=8, sticky="w")
 
-        tk.Entry(
+        port_entry = tk.Entry(
             controls,
             textvariable=self.port_var,
             width=8,
@@ -144,8 +149,9 @@ class NetworkCombinerApp:
             bg="#e4edf8",
             fg="#152033",
             relief="flat",
-            font=("Cascadia Mono", 10),
-        ).pack(side="left", pady=12)
+            font=("Consolas", 10),
+        )
+        port_entry.grid(row=0, column=3, padx=(0, 12), pady=8, sticky="w")
 
         self.status_label = tk.Label(
             controls,
@@ -154,9 +160,10 @@ class NetworkCombinerApp:
             fg="#ffd5d9",
             padx=10,
             pady=5,
-            font=("Bahnschrift SemiBold", 9),
+            font=("Segoe UI", 9),
         )
-        self.status_label.pack(side="right", padx=(0, 14), pady=10)
+        self.status_label.grid(row=0, column=5, padx=(0, 8), pady=8, sticky="e")
+        controls.grid_columnconfigure(4, weight=1)
 
         adapter_panel = tk.Frame(
             shell,
@@ -168,17 +175,17 @@ class NetworkCombinerApp:
         self.adapter_panel.grid(row=2, column=0, sticky="nsew", pady=(0, 10))
 
         top_row = tk.Frame(adapter_panel, bg="#0f1828")
-        top_row.pack(fill="x", padx=14, pady=(12, 8))
+        top_row.pack(fill="x", padx=10, pady=(8, 6))
         tk.Label(
             top_row,
             text="Available Adapter IPv4 Addresses",
             bg="#0f1828",
             fg="#e8f2ff",
-            font=("Bahnschrift SemiBold", 13),
+            font=("Segoe UI", 11),
         ).pack(side="left")
 
         self.ip_frame = tk.Frame(adapter_panel, bg="#0f1828")
-        self.ip_frame.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+        self.ip_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         control_panel = tk.Frame(
             shell,
@@ -189,7 +196,7 @@ class NetworkCombinerApp:
         control_panel.grid(row=3, column=0, sticky="ew", pady=(0, 10))
 
         action_row = tk.Frame(control_panel, bg="#0c111b")
-        action_row.pack(fill="x", padx=14, pady=(12, 8))
+        action_row.pack(fill="x", padx=10, pady=(8, 6))
 
         self.auto_route_cb = tk.Checkbutton(
             action_row,
@@ -200,13 +207,13 @@ class NetworkCombinerApp:
             selectcolor="#0c111b",
             activebackground="#0c111b",
             activeforeground="#dbe7f7",
-            font=("Bahnschrift", 10),
+            font=("Segoe UI", 9),
             anchor="w",
         )
         self.auto_route_cb.pack(side="left")
 
         btn_frame = tk.Frame(control_panel, bg="#0c111b")
-        btn_frame.pack(fill="x", padx=14, pady=(0, 12))
+        btn_frame.pack(fill="x", padx=10, pady=(0, 8))
 
         self.start_btn = tk.Button(
             btn_frame,
@@ -216,12 +223,12 @@ class NetworkCombinerApp:
             activebackground="#1cae77",
             activeforeground="#ffffff",
             relief="flat",
-            font=("Bahnschrift SemiBold", 11),
-            width=16,
+            font=("Segoe UI", 10),
+            width=14,
             command=self.start_proxy,
             cursor="hand2",
         )
-        self.start_btn.pack(side="left", padx=(0, 10))
+        self.start_btn.pack(side="left", padx=(0, 6))
 
         self.stop_btn = tk.Button(
             btn_frame,
@@ -231,8 +238,8 @@ class NetworkCombinerApp:
             activebackground="#bb3744",
             activeforeground="#ffffff",
             relief="flat",
-            font=("Bahnschrift SemiBold", 11),
-            width=16,
+            font=("Segoe UI", 10),
+            width=14,
             command=self.stop_proxy,
             state="disabled",
             cursor="hand2",
@@ -253,8 +260,8 @@ class NetworkCombinerApp:
             text="Runtime Log",
             bg="#111827",
             fg="#dfe9f8",
-            font=("Bahnschrift SemiBold", 12),
-        ).pack(anchor="w", padx=14, pady=(10, 6))
+            font=("Segoe UI", 11),
+        ).pack(anchor="w", padx=10, pady=(8, 4))
 
         self.log_text = tk.Text(
             log_panel,
@@ -263,12 +270,12 @@ class NetworkCombinerApp:
             fg="#b8d5ff",
             insertbackground="#b8d5ff",
             state="disabled",
-            font=("Cascadia Mono", 9),
+            font=("Consolas", 9),
             relief="flat",
             padx=10,
             pady=8,
         )
-        self.log_text.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+        self.log_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
         self.log_text.bind("<MouseWheel>", self._on_log_mousewheel, add="+")
 
         self._update_responsive_heights()
@@ -378,7 +385,7 @@ class NetworkCombinerApp:
                     highlightbackground="#2f4a70",
                     highlightthickness=1,
                 )
-                row.pack(fill="x", pady=4, padx=2)
+                row.pack(fill="x", pady=2, padx=1)
 
                 # Checkbox
                 sel_var = tk.BooleanVar(value=False)
@@ -391,7 +398,7 @@ class NetworkCombinerApp:
                     primary_text = f"{primary_text} [{link_speed}]"
 
                 text_col = tk.Frame(row, bg="#132137")
-                text_col.pack(side="left", fill="x", expand=True, padx=(8, 4), pady=4)
+                text_col.pack(side="left", fill="x", expand=True, padx=(6, 4), pady=3)
 
                 cb = tk.Checkbutton(
                     text_col,
@@ -402,7 +409,7 @@ class NetworkCombinerApp:
                     selectcolor="#132137",
                     activebackground="#132137",
                     activeforeground="#e1ecfb",
-                    font=("Bahnschrift", 10),
+                    font=("Segoe UI", 10),
                     anchor="w",
                     justify="left",
                 )
@@ -414,7 +421,7 @@ class NetworkCombinerApp:
                         text=adapter_desc,
                         bg="#132137",
                         fg="#9bb3d1",
-                        font=("Bahnschrift", 8),
+                        font=("Segoe UI", 8),
                         anchor="w",
                         justify="left",
                     )
@@ -426,8 +433,8 @@ class NetworkCombinerApp:
                     text="Ratio",
                     bg="#132137",
                     fg="#acc3df",
-                    font=("Cascadia Mono", 9),
-                ).pack(side="left", padx=(12, 4))
+                    font=("Consolas", 8),
+                ).pack(side="left", padx=(8, 3))
                 ratio_var = tk.IntVar(value=1)
                 self.ratio_vars[ip] = ratio_var
                 scale = tk.Scale(
@@ -444,7 +451,7 @@ class NetworkCombinerApp:
                     highlightthickness=0,
                     activebackground="#6bb1ff",
                 )
-                scale.pack(side="left", padx=(0, 10), pady=2)
+                scale.pack(side="left", padx=(0, 8), pady=1)
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to get IPs:\n{str(e)}")
