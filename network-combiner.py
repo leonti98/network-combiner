@@ -13,8 +13,10 @@ class NetworkCombinerApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Network Combiner - go-dispatch-proxy GUI")
-        self.root.geometry("680x620")
+        self.root.geometry("940x760")
+        self.root.minsize(860, 680)
         self.root.resizable(True, True)
+        self.root.configure(bg="#0c111b")
 
         self.exe_path = "go-dispatch-proxy.exe"  # must be in the same folder
         self.proc = None
@@ -32,90 +34,301 @@ class NetworkCombinerApp:
             flags=re.IGNORECASE,
         )
 
-        # Title
-        tk.Label(
-            self.root, text="Combine Multiple Networks", font=("Arial", 16, "bold")
-        ).pack(pady=10)
-        tk.Label(
-            self.root, text="Select IPs and set ratios → Start", font=("Arial", 10)
-        ).pack()
-
-        # IP list area
-        tk.Label(
-            self.root,
-            text="Available IP Addresses (non-loopback IPv4)",
-            font=("Arial", 12, "bold"),
-        ).pack(pady=(20, 5))
-
-        self.ip_frame = tk.Frame(self.root)
-        self.ip_frame.pack(fill="both", expand=True, padx=20)
-
-        btn_frame_top = tk.Frame(self.root)
-        btn_frame_top.pack(pady=8)
-        tk.Button(
-            btn_frame_top, text="🔄 Refresh IPs", command=self.refresh_ips, width=15
-        ).pack(side="left", padx=5)
-
-        # Listen port
-        port_frame = tk.Frame(self.root)
-        port_frame.pack(pady=8)
-        tk.Label(port_frame, text="SOCKS5 Listen Port:").pack(side="left")
+        self.adapter_count_var = tk.StringVar(value="0 adapters detected")
         self.port_var = tk.StringVar(value="8080")
-        tk.Entry(port_frame, textvariable=self.port_var, width=8).pack(
-            side="left", padx=5
-        )
-
-        # Optional system-level auto-routing (WinINet apps)
-        auto_route_frame = tk.Frame(self.root)
-        auto_route_frame.pack(pady=(0, 8))
         self.auto_route_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(
-            auto_route_frame,
-            text="Auto-route system traffic (PAC + SOCKS5)",
-            variable=self.auto_route_var,
-            anchor="w",
-        ).pack(side="left")
 
-        # Action buttons
-        btn_frame = tk.Frame(self.root)
-        btn_frame.pack(pady=10)
-        self.start_btn = tk.Button(
-            btn_frame,
-            text="▶️ Start Proxy",
-            bg="#00c853",
-            fg="white",
-            font=("Arial", 10, "bold"),
-            width=15,
-            command=self.start_proxy,
-        )
-        self.start_btn.pack(side="left", padx=10)
-
-        self.stop_btn = tk.Button(
-            btn_frame,
-            text="⏹️ Stop Proxy",
-            bg="#d50000",
-            fg="white",
-            font=("Arial", 10, "bold"),
-            width=15,
-            command=self.stop_proxy,
-            state="disabled",
-        )
-        self.stop_btn.pack(side="left", padx=10)
-
-        # Log
-        tk.Label(self.root, text="Log / Status:", anchor="w").pack(fill="x", padx=20)
-        self.log_text = tk.Text(
-            self.root, height=12, bg="#f0f0f0", state="disabled", font=("Consolas", 9)
-        )
-        self.log_text.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        self._build_ui()
 
         self.selected_vars = {}
         self.ratio_vars = {}
         self.adapter_by_ip = {}
 
         self.refresh_ips()  # initial load
+        self._set_proxy_state(False)
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def _build_ui(self):
+        # Bold dark-glass style optimized for dense network controls.
+        self.main_canvas = tk.Canvas(
+            self.root,
+            bg="#0c111b",
+            highlightthickness=0,
+            bd=0,
+        )
+        self.main_canvas.pack(side="left", fill="both", expand=True)
+        self.main_scrollbar = tk.Scrollbar(
+            self.root, orient="vertical", command=self.main_canvas.yview
+        )
+        self.main_scrollbar.pack(side="right", fill="y")
+        self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
+
+        self.main_frame = tk.Frame(self.main_canvas, bg="#0c111b")
+        self.main_window = self.main_canvas.create_window(
+            (0, 0), window=self.main_frame, anchor="nw"
+        )
+        self.main_frame.bind("<Configure>", self._on_main_frame_configure)
+        self.main_canvas.bind("<Configure>", self._on_main_canvas_configure)
+        self.root.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
+        self.root.bind("<Configure>", self._on_root_resize)
+
+        shell = tk.Frame(self.main_frame, bg="#0c111b")
+        shell.pack(fill="both", expand=True, padx=20, pady=18)
+
+        header = tk.Frame(
+            shell, bg="#13243d", highlightbackground="#2f4f74", highlightthickness=1
+        )
+        header.pack(fill="x", pady=(0, 14))
+
+        tk.Label(
+            header,
+            text="Network Combiner",
+            bg="#13243d",
+            fg="#e8f2ff",
+            font=("Bahnschrift SemiBold", 22),
+        ).pack(anchor="w", padx=18, pady=(14, 2))
+        tk.Label(
+            header,
+            text="Combine multiple adapter IPs into one SOCKS5 endpoint with weighted balancing",
+            bg="#13243d",
+            fg="#9fb5cf",
+            font=("Cascadia Mono", 10),
+        ).pack(anchor="w", padx=18, pady=(0, 12))
+
+        controls = tk.Frame(
+            shell, bg="#152033", highlightbackground="#2b3d5c", highlightthickness=1
+        )
+        controls.pack(fill="x", pady=(0, 10))
+
+        tk.Button(
+            controls,
+            text="Refresh Adapters",
+            command=self.refresh_ips,
+            width=16,
+            bg="#285f9a",
+            fg="#ffffff",
+            activebackground="#3676b8",
+            activeforeground="#ffffff",
+            relief="flat",
+            font=("Bahnschrift SemiBold", 10),
+            cursor="hand2",
+        ).pack(side="left", padx=(14, 12), pady=12)
+
+        tk.Label(
+            controls,
+            textvariable=self.adapter_count_var,
+            bg="#152033",
+            fg="#9fb5cf",
+            font=("Cascadia Mono", 10),
+        ).pack(side="left", pady=12)
+
+        tk.Label(
+            controls,
+            text="SOCKS5 Port",
+            bg="#152033",
+            fg="#e2ecf9",
+            font=("Bahnschrift", 10),
+        ).pack(side="left", padx=(26, 8), pady=12)
+
+        tk.Entry(
+            controls,
+            textvariable=self.port_var,
+            width=8,
+            justify="center",
+            bg="#e4edf8",
+            fg="#152033",
+            relief="flat",
+            font=("Cascadia Mono", 10),
+        ).pack(side="left", pady=12)
+
+        self.status_label = tk.Label(
+            controls,
+            text="Proxy Stopped",
+            bg="#4e2025",
+            fg="#ffd5d9",
+            padx=10,
+            pady=5,
+            font=("Bahnschrift SemiBold", 9),
+        )
+        self.status_label.pack(side="right", padx=(0, 14), pady=10)
+
+        self.splitter = ttk.Panedwindow(shell, orient="vertical")
+        self.splitter.pack(fill="both", expand=True, pady=(0, 10))
+
+        adapter_panel = tk.Frame(
+            self.splitter,
+            bg="#0f1828",
+            highlightbackground="#2b3d5c",
+            highlightthickness=1,
+        )
+        self.adapter_panel = adapter_panel
+
+        top_row = tk.Frame(adapter_panel, bg="#0f1828")
+        top_row.pack(fill="x", padx=14, pady=(12, 8))
+        tk.Label(
+            top_row,
+            text="Available Adapter IPv4 Addresses",
+            bg="#0f1828",
+            fg="#e8f2ff",
+            font=("Bahnschrift SemiBold", 13),
+        ).pack(side="left")
+
+        self.ip_frame = tk.Frame(adapter_panel, bg="#0f1828")
+        self.ip_frame.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+
+        control_panel = tk.Frame(
+            self.splitter,
+            bg="#0c111b",
+            highlightbackground="#2b3d5c",
+            highlightthickness=1,
+        )
+
+        action_row = tk.Frame(control_panel, bg="#0c111b")
+        action_row.pack(fill="x", padx=14, pady=(12, 8))
+
+        self.auto_route_cb = tk.Checkbutton(
+            action_row,
+            text="Auto-route system traffic (PAC + SOCKS5)",
+            variable=self.auto_route_var,
+            bg="#0c111b",
+            fg="#dbe7f7",
+            selectcolor="#0c111b",
+            activebackground="#0c111b",
+            activeforeground="#dbe7f7",
+            font=("Bahnschrift", 10),
+            anchor="w",
+        )
+        self.auto_route_cb.pack(side="left")
+
+        btn_frame = tk.Frame(control_panel, bg="#0c111b")
+        btn_frame.pack(fill="x", padx=14, pady=(0, 12))
+
+        self.start_btn = tk.Button(
+            btn_frame,
+            text="Start Proxy",
+            bg="#178f62",
+            fg="#ffffff",
+            activebackground="#1cae77",
+            activeforeground="#ffffff",
+            relief="flat",
+            font=("Bahnschrift SemiBold", 11),
+            width=16,
+            command=self.start_proxy,
+            cursor="hand2",
+        )
+        self.start_btn.pack(side="left", padx=(0, 10))
+
+        self.stop_btn = tk.Button(
+            btn_frame,
+            text="Stop Proxy",
+            bg="#9b2934",
+            fg="#ffffff",
+            activebackground="#bb3744",
+            activeforeground="#ffffff",
+            relief="flat",
+            font=("Bahnschrift SemiBold", 11),
+            width=16,
+            command=self.stop_proxy,
+            state="disabled",
+            cursor="hand2",
+        )
+        self.stop_btn.pack(side="left")
+
+        log_panel = tk.Frame(
+            self.splitter,
+            bg="#111827",
+            highlightbackground="#2b3d5c",
+            highlightthickness=1,
+        )
+        self.log_panel = log_panel
+
+        tk.Label(
+            log_panel,
+            text="Runtime Log",
+            bg="#111827",
+            fg="#dfe9f8",
+            font=("Bahnschrift SemiBold", 12),
+        ).pack(anchor="w", padx=14, pady=(10, 6))
+
+        self.log_text = tk.Text(
+            log_panel,
+            height=12,
+            bg="#0a1322",
+            fg="#b8d5ff",
+            insertbackground="#b8d5ff",
+            state="disabled",
+            font=("Cascadia Mono", 9),
+            relief="flat",
+            padx=10,
+            pady=8,
+        )
+        self.log_text.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+
+        self.splitter.add(adapter_panel, weight=3)
+        self.splitter.add(control_panel, weight=0)
+        self.splitter.add(log_panel, weight=2)
+
+        self._update_responsive_heights()
+
+    def _set_proxy_state(self, is_running):
+        if is_running:
+            self.status_label.config(text="Proxy Running", bg="#145a43", fg="#d5ffe8")
+        else:
+            self.status_label.config(text="Proxy Stopped", bg="#4e2025", fg="#ffd5d9")
+
+    def _on_main_frame_configure(self, _event):
+        self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
+
+    def _on_main_canvas_configure(self, event):
+        self.main_canvas.itemconfigure(self.main_window, width=event.width)
+
+    def _on_mousewheel(self, event):
+        delta = event.delta
+        if delta == 0:
+            return
+
+        steps = int(-1 * (delta / 120))
+        if steps == 0:
+            steps = -1 if delta > 0 else 1
+
+        self.main_canvas.yview_scroll(steps, "units")
+
+    def _widget_is_descendant(self, widget, ancestor):
+        current = widget
+        while current is not None:
+            if current == ancestor:
+                return True
+            parent_name = current.winfo_parent()
+            if not parent_name:
+                break
+            try:
+                current = current.nametowidget(parent_name)
+            except Exception:
+                break
+        return False
+
+    def _on_root_resize(self, _event):
+        self._update_responsive_heights()
+
+    def _update_responsive_heights(self):
+        window_height = self.root.winfo_height()
+        if window_height <= 1:
+            return
+
+        available_height = max(320, window_height - 310)
+        adapter_height = max(220, int(available_height * 0.53))
+        control_height = 92
+        log_height_lines = max(8, min(18, int(available_height / 32)))
+
+        self.log_text.config(height=log_height_lines)
+
+        if hasattr(self, "splitter"):
+            try:
+                self.splitter.sashpos(0, adapter_height)
+                self.splitter.sashpos(1, adapter_height + control_height)
+            except Exception:
+                pass
 
     def log(self, message):
         self.log_text.config(state="normal")
@@ -136,16 +349,23 @@ class NetworkCombinerApp:
             entries = self._extract_adapter_ips(output)
 
             if not entries:
+                self.adapter_count_var.set("0 adapters detected")
                 self.log(
                     "⚠️ No network IPs found. Connect your networks and click Refresh."
                 )
                 return
 
             self.log(f"✅ Found {len(entries)} adapter IPs")
+            self.adapter_count_var.set(f"{len(entries)} adapters detected")
 
             for adapter_name, ip in entries:
-                row = tk.Frame(self.ip_frame)
-                row.pack(fill="x", pady=3)
+                row = tk.Frame(
+                    self.ip_frame,
+                    bg="#132137",
+                    highlightbackground="#2f4a70",
+                    highlightthickness=1,
+                )
+                row.pack(fill="x", pady=4, padx=2)
 
                 # Checkbox
                 sel_var = tk.BooleanVar(value=False)
@@ -155,12 +375,24 @@ class NetworkCombinerApp:
                     row,
                     text=f"{adapter_name} ({ip})",
                     variable=sel_var,
+                    bg="#132137",
+                    fg="#e1ecfb",
+                    selectcolor="#132137",
+                    activebackground="#132137",
+                    activeforeground="#e1ecfb",
+                    font=("Bahnschrift", 10),
                     anchor="w",
                 )
-                cb.pack(side="left", padx=5)
+                cb.pack(side="left", fill="x", expand=True, padx=(8, 4), pady=6)
 
                 # Ratio slider
-                tk.Label(row, text="Ratio:").pack(side="left", padx=(20, 5))
+                tk.Label(
+                    row,
+                    text="Ratio",
+                    bg="#132137",
+                    fg="#acc3df",
+                    font=("Cascadia Mono", 9),
+                ).pack(side="left", padx=(12, 4))
                 ratio_var = tk.IntVar(value=1)
                 self.ratio_vars[ip] = ratio_var
                 scale = tk.Scale(
@@ -169,10 +401,15 @@ class NetworkCombinerApp:
                     to=10,
                     orient="horizontal",
                     variable=ratio_var,
-                    length=180,
+                    length=170,
                     showvalue=True,
+                    bg="#132137",
+                    fg="#d6e7ff",
+                    troughcolor="#2c4669",
+                    highlightthickness=0,
+                    activebackground="#6bb1ff",
                 )
-                scale.pack(side="left")
+                scale.pack(side="left", padx=(0, 10), pady=2)
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to get IPs:\n{str(e)}")
@@ -314,6 +551,7 @@ class NetworkCombinerApp:
 
             self.start_btn.config(state="disabled")
             self.stop_btn.config(state="normal")
+            self._set_proxy_state(True)
 
             if self.auto_route_var.get():
                 ok, err = self._enable_system_proxy(listen_port)
@@ -332,6 +570,7 @@ class NetworkCombinerApp:
                         pass
                     self.start_btn.config(state="normal")
                     self.stop_btn.config(state="disabled")
+                    self._set_proxy_state(False)
                     self.proc = None
                     return False
 
@@ -445,6 +684,7 @@ class NetworkCombinerApp:
 
         self.start_btn.config(state="normal")
         self.stop_btn.config(state="disabled")
+        self._set_proxy_state(False)
         self.log(f"Proxy stopped (exit code: {exit_code})")
         self.failover_in_progress = False
         self.proc = None
@@ -454,6 +694,7 @@ class NetworkCombinerApp:
             self.log("Proxy is not running")
             self.start_btn.config(state="normal")
             self.stop_btn.config(state="disabled")
+            self._set_proxy_state(False)
             self.proc = None
             return
 
@@ -466,6 +707,11 @@ class NetworkCombinerApp:
             messagebox.showerror("Stop failed", str(exc))
 
     def on_close(self):
+        try:
+            self.root.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
+
         if self.proc and self.proc.poll() is None:
             if not messagebox.askyesno(
                 "Exit", "Proxy is still running. Stop it and exit?"
