@@ -11,7 +11,7 @@ Network Combiner is a Windows desktop GUI for `go-dispatch-proxy`. It lets you c
 - Optionally applies Windows user-level auto-routing with a PAC file.
 - Monitors proxy output and auto-fails over away from repeatedly failing adapters.
 
-## How it works (high level)
+## How it works
 
 1. You select one or more adapter IPs and set each adapter's ratio.
 2. The app launches `go-dispatch-proxy.exe` with your selected values.
