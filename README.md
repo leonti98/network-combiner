@@ -29,30 +29,28 @@ Network Combiner is a Windows desktop GUI for `go-dispatch-proxy`. It lets you c
 ## Repository layout
 
 - `network-combiner.py` - Tkinter GUI app.
-- `go-dispatch-proxy.exe` - external executable used by the GUI (you provide this file).
+- `go-dispatch-proxy.exe` - external executable used by the GUI (included in this project).
 - `README.md` - documentation.
 
-## Setup
+## How to run
 
-1. Place `go-dispatch-proxy.exe` in the project folder, next to `network-combiner.py`.
-2. Open PowerShell in this folder.
-3. Run:
+double-click `network-combiner.py` or run it from a terminal to launch the GUI. 
 
-	 `python .\network-combiner.py`
+To run from PowerShell:
+1. Open PowerShell in this folder.
+2. Run:
 
-If Python is installed as `py`, you can also run:
+	   python .\network-combiner.py
 
-`py .\network-combiner.py`
 
 ## Step-by-step usage
 
 1. Click **Refresh IPs** to load currently available adapter IPv4 addresses.
 2. Check the adapters you want to include.
 3. Set a **Ratio** (1-10) for each selected adapter:
-	 - `1` means baseline share.
-	 - Higher values send proportionally more traffic through that adapter.
+	 - select ratios based on speed and reliability of each adapter (e.g. `1` for a 10 Mbps link, `5` for a 50 Mbps link).
 4. Set **SOCKS5 Listen Port** (default `8080`).
-5. Keep or clear **Auto-route system traffic (PAC + SOCKS5)** depending on your needs.
+5. Keep or clear **Auto-route system traffic (PAC + SOCKS5)** depending on your needs. If disabled, you will need to configure your client applications to use the SOCKS5 proxy manually.
 6. Click **Start Proxy**.
 7. Watch the log panel for runtime status.
 8. Click **Stop Proxy** when done.
